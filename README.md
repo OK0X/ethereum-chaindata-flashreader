@@ -1,1 +1,1 @@
-# ethereum-chaindata-flashreader
+# ethereum chaindata flashreader
