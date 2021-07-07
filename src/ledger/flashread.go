@@ -11,12 +11,20 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type FlashRead struct {
+	DB ethdb.Database
+}
+
 type BlockTxs struct {
 	Number uint64
 	Txs    types.Transactions
 }
 
-func ReadTransactions(db ethdb.Database, from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
+func (fr *FlashRead) Initialize(db ethdb.Database) {
+	fr.DB = db
+}
+
+func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
 	// One thread sequentially reads data from db
 	type numberRlp struct {
 		number uint64
@@ -41,7 +49,7 @@ func ReadTransactions(db ethdb.Database, from uint64, to uint64, reverse bool, i
 		}
 		defer close(rlpCh)
 		for n != end {
-			data := rawdb.ReadCanonicalBodyRLP(db, n)
+			data := rawdb.ReadCanonicalBodyRLP(fr.DB, n)
 			// Feed the block to the aggregator, or abort on interrupt
 			select {
 			case rlpCh <- &numberRlp{n, data}:

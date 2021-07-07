@@ -12,17 +12,21 @@ import (
 func main() {
 
 	usr, _ := user.Current()
-	benchDataDir := usr.HomeDir + "/geth/data/geth/chaindata"
-	db, err := rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "", false)
+	dataDir := usr.HomeDir + "/geth/data/geth/chaindata"
+	db, err := rawdb.NewLevelDBDatabase(dataDir, 128, 1024, "", false)
 
 	if err != nil {
-		fmt.Errorf("error opening database at %v: %v", benchDataDir, err)
+		fmt.Errorf("error opening database at %v: %v", dataDir, err)
 	}
+
+	flashRead := &ledger.FlashRead{}
+	flashRead.Initialize(db)
+
 	from := uint64(0)
 	to := uint64(8)
 	lastNum := to
 	blocks := 0
-	txsCh := ledger.ReadTransactions(db, from, to, false, nil)
+	txsCh := flashRead.ReadTransactions(from, to, false, nil)
 
 	queue := prque.New(nil)
 
