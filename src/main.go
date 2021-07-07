@@ -44,6 +44,11 @@ func main() {
 			blocks++
 			fmt.Println(delivery.Number)
 
+			for i := 0; i < delivery.Txs.Len(); i++ {
+				tx := delivery.Txs[i]
+				fmt.Println(tx.To().String())
+			}
+
 		}
 
 	}
