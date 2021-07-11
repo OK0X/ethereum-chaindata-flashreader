@@ -1,12 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/user"
 
-	"github.com/OK0X/ethereum-chaindata-flashreader/src/ledger"
-	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+
+	"github.com/OK0X/ethereum-chaindata-flashreader/src/ledger"
 )
 
 func main() {
@@ -19,39 +20,10 @@ func main() {
 		fmt.Errorf("error opening database at %v: %v", dataDir, err)
 	}
 
-	flashRead := &ledger.FlashRead{}
-	flashRead.Initialize(db)
-
-	from := uint64(0)
-	to := uint64(8)
-	lastNum := to
-	blocks := 0
-	txsCh := flashRead.ReadTransactions(from, to, false, nil)
-
-	queue := prque.New(nil)
-
-	for chanDelivery := range txsCh {
-		queue.Push(chanDelivery, int64(chanDelivery.Number))
-		for !queue.Empty() {
-			// If the next available item is gapped, return
-			if _, priority := queue.Peek(); priority != int64(lastNum-1) {
-				break
-			}
-
-			// Next block available, pop it off and index it
-			delivery := queue.PopItem().(*ledger.BlockTxs)
-			lastNum = delivery.Number
-			blocks++
-			fmt.Println(delivery.Number)
-
-			for i := 0; i < delivery.Txs.Len(); i++ {
-				tx := delivery.Txs[i]
-				fmt.Println(tx.To().String())
-			}
-
-		}
-
-	}
-
+	fr := &ledger.FlashRead{}
+	fr.Initialize(db)
+	blocks, _ := fr.ReadTransactions(0, 12, false, nil)
+	txStr, _ := json.Marshal(blocks)
+	fmt.Println(string(txStr))
 	db.Close()
 }

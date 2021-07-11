@@ -1,9 +1,12 @@
 package ledger
 
 import (
+	"fmt"
 	"runtime"
 	"sync/atomic"
 
+	"github.com/OK0X/ethereum-chaindata-flashreader/src/model"
+	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -24,7 +27,81 @@ func (fr *FlashRead) Initialize(db ethdb.Database) {
 	fr.DB = db
 }
 
-func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
+func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) (model.Blocks, error) {
+	if from < 0 {
+		return nil, fmt.Errorf("block number from should bigger or equal 0")
+	}
+
+	// ToDo
+	// if to > lastBlockNumber {
+	// 	return nil, fmt.Errorf("block number to should less or equal lastest")
+	// }
+
+	if from >= to {
+		return nil, fmt.Errorf("block number from should less than to")
+	}
+
+	blocks := make(model.Blocks, 0, to-from)
+
+	lastNum := to
+	txsCh := fr.readTransactions(from, to, false, nil)
+
+	queue := prque.New(nil)
+
+	for chanDelivery := range txsCh {
+		queue.Push(chanDelivery, int64(chanDelivery.Number))
+		for !queue.Empty() {
+			// If the next available item is gapped, return
+			if _, priority := queue.Peek(); priority != int64(lastNum-1) {
+				break
+			}
+
+			// Next block available, pop it off and index it
+			delivery := queue.PopItem().(*BlockTxs)
+			lastNum = delivery.Number
+			mtxs := make([]*model.Transaction, 0, delivery.Txs.Len())
+			for i := 0; i < delivery.Txs.Len(); i++ {
+				tx := delivery.Txs[i]
+				v, r, s := tx.RawSignatureValues()
+				mtx := &model.Transaction{
+					Type:       tx.Type(),
+					ChainId:    tx.ChainId(),
+					Data:       tx.Data(),
+					AccessList: tx.AccessList(),
+					Gas:        tx.Gas(),
+					GasPrice:   tx.GasPrice(),
+					GasTipCap:  tx.GasTipCap(),
+					GasFeeCap:  tx.GasFeeCap(),
+					Value:      tx.Value(),
+					Nonce:      tx.Nonce(),
+					To:         tx.To(),
+					Cost:       tx.Cost(),
+					V:          v,
+					R:          r,
+					S:          s,
+					Hash:       tx.Hash(),
+					Size:       tx.Size(),
+				}
+
+				mtxs = append(mtxs, mtx)
+
+			}
+
+			block := &model.Block{
+				Number:       lastNum,
+				Transactions: mtxs,
+			}
+
+			blocks = append(blocks, block)
+
+		}
+
+	}
+
+	return blocks, nil
+}
+
+func (fr *FlashRead) readTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
 	// One thread sequentially reads data from db
 	type numberRlp struct {
 		number uint64
