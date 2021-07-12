@@ -33,6 +33,8 @@ func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, inte
 	}
 
 	// ToDo
+	// //headBlockHash := rawdb.ReadHeadBlockHash(db)
+	// //headBlockNumber := rawdb.ReadHeaderNumber(db, headBlockHash)
 	// if to > lastBlockNumber {
 	// 	return nil, fmt.Errorf("block number to should less or equal lastest")
 	// }
