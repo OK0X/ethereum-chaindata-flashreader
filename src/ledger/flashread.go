@@ -27,7 +27,7 @@ func (fr *FlashRead) Initialize(db ethdb.Database) {
 	fr.DB = db
 }
 
-func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) (model.Blocks, error) {
+func (fr *FlashRead) IndexTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) (model.Blocks, error) {
 	if from < 0 {
 		return nil, fmt.Errorf("block number from should bigger or equal 0")
 	}
@@ -46,7 +46,7 @@ func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, inte
 	blocks := make(model.Blocks, 0, to-from)
 
 	lastNum := to
-	txsCh := fr.readTransactions(from, to, false, nil)
+	txsCh := fr.iterateTransactions(from, to, false, nil)
 
 	queue := prque.New(nil)
 
@@ -103,7 +103,7 @@ func (fr *FlashRead) ReadTransactions(from uint64, to uint64, reverse bool, inte
 	return blocks, nil
 }
 
-func (fr *FlashRead) readTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
+func (fr *FlashRead) iterateTransactions(from uint64, to uint64, reverse bool, interrupt chan struct{}) chan *BlockTxs {
 	// One thread sequentially reads data from db
 	type numberRlp struct {
 		number uint64

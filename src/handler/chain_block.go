@@ -17,6 +17,6 @@ func GetBlocks(c *gin.Context) {
 	}
 	ifrom, _ := strconv.ParseInt(from, 10, 64)
 	ito, _ := strconv.ParseInt(to, 10, 64)
-	blocks, _ := FlashRead.ReadTransactions(uint64(ifrom), uint64(ito), false, nil)
+	blocks, _ := FlashRead.IndexTransactions(uint64(ifrom), uint64(ito), false, nil)
 	c.JSON(http.StatusOK, blocks)
 }
